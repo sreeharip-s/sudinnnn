@@ -12,122 +12,326 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     
-    <!-- Babel Standalone for JSX/TSX compilation in browser -->
+    <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Google Fonts -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
         
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #000000;
-            color: #d1d5db;
+            background-color: #050505;
+            color: #e5e5e5; /* Increased contrast from d1d5db */
+            overflow: hidden; 
         }
         
-        /* Scrollbar Styling */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #000000; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-        /* Global utility for fade-in animations */
-        .content-panel {
-            animation: fadeIn 0.4s ease-out;
+        /* Animations */
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
+        .animate-scale-in {
+            animation: scaleIn 0.2s ease-out forwards;
+        }
+        
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+            50% { box-shadow: 0 0 20px 2px rgba(249, 115, 22, 0.3); }
+        }
+        .animate-pulse-glow {
+            animation: pulse-border 2s infinite;
+        }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
-  }
-}
-</script>
 </head>
-<body class="selection:bg-orange-500 selection:text-white">
+<body>
     <div id="root"></div>
 
     <script type="text/babel" data-presets="react,typescript">
-        const { useState } = React;
+        const { useState, useEffect, createContext, useContext, useRef } = React;
 
-        // --- TYPES ---
-        // (Interfaces are stripped by Babel but helpful for structure context)
-        type Page = 'home' | 'numbers' | 'collections' | 'mutability' | 'operators';
+        // --- ICONS ---
+        const Icons = {
+            Home: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+            Hash: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>,
+            Type: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>,
+            Box: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
+            Cpu: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>,
+            Divide: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="6" r="2"></circle><line x1="5" y1="12" x2="19" y2="12"></line><circle cx="12" cy="18" r="2"></circle></svg>,
+            Maximize: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>,
+            X: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+            Play: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+            ZoomIn: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>,
+            ZoomOut: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>,
+            Alert: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
+            Info: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
+        };
 
-        interface NavItem {
-            id: Page;
-            label: string;
-            icon: string;
-        }
+        // --- CONTEXTS ---
 
-        // --- CONSTANTS ---
-        const NAV_ITEMS: NavItem[] = [
-            { id: 'home', label: 'Home', icon: '🏠' },
-            { id: 'numbers', label: 'Numbers & Booleans', icon: '#️⃣' },
-            { id: 'collections', label: 'Collections', icon: '📚' },
-            { id: 'mutability', label: 'Variables & Memory', icon: '🧠' },
-            { id: 'operators', label: 'Operators', icon: '➗' }
-        ];
+        const FocusContext = createContext({
+            focusCallout: (data) => {} 
+        });
 
-        // --- COMMON COMPONENTS ---
+        const CodeModalContext = createContext({
+            openModal: (code, output) => {}
+        });
 
-        const Card = ({ children, className = '' }) => {
+        // --- COMPONENTS ---
+
+        const NavItem = ({ id, label, icon: Icon, activePage, setActivePage }) => (
+            <button
+                onClick={() => setActivePage(id)}
+                className={`w-full text-left flex items-center px-6 py-4 text-sm font-medium transition-all duration-200 border-l-4 ${
+                    activePage === id
+                        ? 'bg-white/5 border-orange-500 text-orange-400'
+                        : 'border-transparent text-neutral-400 hover:bg-white/5 hover:text-white'
+                }`}
+            >
+                <span className="mr-3 opacity-80"><Icon /></span>
+                <span>{label}</span>
+            </button>
+        );
+
+        const Sidebar = ({ activePage, setActivePage }) => (
+            <nav className="w-full md:w-64 bg-[#0a0a0a] border-r border-white/10 flex flex-col shrink-0 z-30 h-full relative">
+                <div className="p-6 border-b border-white/10">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">
+                        Python<span className="text-orange-500">.7</span>
+                    </h2>
+                    <p className="text-[10px] text-neutral-500 mt-1 uppercase tracking-widest font-semibold">Interactive Guide</p>
+                </div>
+                <div className="flex-1 overflow-y-auto py-2">
+                    <NavItem id="numbers" label="1. Numbers" icon={Icons.Hash} activePage={activePage} setActivePage={setActivePage} />
+                    <NavItem id="strings" label="2. Strings" icon={Icons.Type} activePage={activePage} setActivePage={setActivePage} />
+                    <NavItem id="compound" label="3. Compound Types" icon={Icons.Box} activePage={activePage} setActivePage={setActivePage} />
+                    <NavItem id="mutability" label="4. Mutability" icon={Icons.Cpu} activePage={activePage} setActivePage={setActivePage} />
+                    <NavItem id="operators" label="5. Operators" icon={Icons.Divide} activePage={activePage} setActivePage={setActivePage} />
+                </div>
+            </nav>
+        );
+
+        // --- CODE BLOCK & MODAL SYSTEM ---
+
+        const CodeModal = ({ isOpen, onClose, code, output }) => {
+            const [fontSize, setFontSize] = useState(16);
+            
+            if (!isOpen) return null;
+
             return (
-                <div className={`bg-[#111111] border border-neutral-800 rounded-xl ${className}`}>
-                    {children}
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-scale-in">
+                    <div className="bg-[#111] border border-neutral-700 w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#151515]">
+                            <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                                <Icons.Play />
+                                <span className="font-semibold text-white">Code Simulator</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="flex bg-neutral-900 rounded p-1 border border-neutral-800 mr-4">
+                                    <button onClick={() => setFontSize(s => Math.max(10, s-2))} className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white" title="Decrease Font"><Icons.ZoomOut /></button>
+                                    <span className="px-2 text-xs flex items-center text-neutral-500 w-8 justify-center select-none">{fontSize}</span>
+                                    <button onClick={() => setFontSize(s => Math.min(32, s+2))} className="p-1 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white" title="Increase Font"><Icons.ZoomIn /></button>
+                                </div>
+                                <button onClick={onClose} className="p-1 hover:bg-red-900/30 text-neutral-400 hover:text-red-400 rounded transition-colors">
+                                    <Icons.X />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                            {/* Code Side */}
+                            <div className="flex-1 p-6 overflow-auto bg-[#0d0d0d] border-r border-neutral-800 relative">
+                                <span className="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold text-neutral-600 bg-neutral-900 rounded-bl border-b border-l border-neutral-800">INPUT</span>
+                                <pre style={{ fontSize: `${fontSize}px` }} className="font-mono text-emerald-300 leading-relaxed whitespace-pre-wrap">{code}</pre>
+                            </div>
+                            {/* Output Side */}
+                            <div className="flex-1 p-6 overflow-auto bg-[#050505] relative">
+                                <span className="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold text-neutral-600 bg-neutral-900 rounded-bl border-b border-l border-neutral-800">OUTPUT</span>
+                                <pre style={{ fontSize: `${fontSize}px` }} className="font-mono text-blue-300 leading-relaxed whitespace-pre-wrap font-bold">
+                                    <span className="text-neutral-600 mr-2 select-none">$</span>{output}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         };
 
-        const CodeBlock = ({ children, className = '' }) => {
-            return (
-                <div className={`bg-neutral-950 border border-neutral-800 text-emerald-200 p-4 rounded-lg font-mono whitespace-pre-wrap relative ${className}`}>
-                    <span className="absolute top-0 right-0 bg-neutral-800 text-neutral-400 text-[0.6rem] px-2 py-0.5 border-b border-l border-neutral-700 rounded-bl-md">
-                        PYTHON
-                    </span>
-                    <code>{children}</code>
-                </div>
-            );
-        };
-
-        const Tabs = ({ tabs, children, variant = 'primary' }) => {
-            const [activeTab, setActiveTab] = useState(0);
-
-            const primaryBase = "px-4 py-2 text-sm font-medium rounded-t-lg";
-            const primaryActive = "bg-orange-400 text-black font-semibold shadow-md";
-            const primaryInactive = "bg-neutral-900 text-gray-400 hover:bg-neutral-800 hover:text-white";
-
-            const secondaryBase = "px-4 py-2 rounded-full text-sm font-bold border";
-            const secondaryActive = "bg-orange-500 text-white border-transparent";
-            const secondaryInactive = "border-neutral-800 text-gray-400 hover:bg-neutral-800 hover:text-white";
+        const CodeBlock = ({ children, output = "Process finished with exit code 0", label = "PYTHON" }) => {
+            const { openModal } = useContext(CodeModalContext);
             
             return (
-                <div>
-                    <div className={`flex ${variant === 'primary' ? 'border-b border-neutral-800 mb-4' : 'flex-wrap gap-2 mb-6'}`}>
-                        {tabs.map((tab, index) => (
+                <div 
+                    onClick={(e) => { e.stopPropagation(); openModal(children, output); }}
+                    className="group relative bg-[#0a0a0a] border border-neutral-800 hover:border-orange-500/50 rounded-lg p-4 font-mono text-sm text-emerald-200 cursor-pointer transition-all duration-200 hover:shadow-[0_0_15px_rgba(249,115,22,0.1)] overflow-hidden"
+                >
+                    <div className="absolute top-0 right-0 flex">
+                         <div className="bg-neutral-900 text-neutral-500 text-[10px] px-2 py-1 border-b border-l border-neutral-800 group-hover:text-orange-400 transition-colors uppercase font-bold tracking-wider">
+                            Click to Run
+                        </div>
+                        <div className="bg-neutral-800 text-neutral-400 text-[10px] px-2 py-1 border-b border-l border-neutral-700 hidden group-hover:flex items-center gap-1">
+                             <Icons.Maximize />
+                        </div>
+                    </div>
+                    <pre className="whitespace-pre-wrap break-words relative z-10">{children}</pre>
+                </div>
+            );
+        };
+
+        // --- CALLOUT SYSTEM ---
+
+        const Callout = ({ title, children, variant = "info", isOverlay = false }) => {
+            const { focusCallout } = useContext(FocusContext);
+
+            const variants = {
+                info: { border: "border-blue-500/30", bg: "bg-blue-900/10", title: "text-blue-400", icon: "💡" },
+                warning: { border: "border-yellow-500/30", bg: "bg-yellow-900/10", title: "text-yellow-400", icon: "⚠️" },
+                danger: { border: "border-red-500/30", bg: "bg-red-900/10", title: "text-red-400", icon: "🚫" },
+                success: { border: "border-emerald-500/30", bg: "bg-emerald-900/10", title: "text-emerald-400", icon: "✅" }
+            };
+
+            const v = variants[variant];
+
+            const handleClick = (e) => {
+                e.stopPropagation();
+                if (!isOverlay) {
+                    focusCallout({ title, children, variant });
+                }
+            };
+
+            return (
+                <div 
+                    onClick={handleClick}
+                    className={`
+                        relative rounded-xl border p-5 transition-all duration-300 cursor-pointer overflow-hidden
+                        ${v.bg} ${v.border}
+                        ${isOverlay ? 'shadow-2xl scale-105 animate-pulse-glow bg-[#0f0f0f]' : 'hover:bg-opacity-20 hover:border-opacity-50 hover:translate-y-[-2px]'}
+                    `}
+                >
+                    <div className="flex items-center gap-3 mb-3">
+                        <span className="text-xl">{v.icon}</span>
+                        <h4 className={`font-bold uppercase text-sm tracking-wider ${v.title}`}>{title}</h4>
+                        {!isOverlay && <span className="ml-auto text-[10px] text-neutral-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Focus</span>}
+                    </div>
+                    <div className={`text-sm leading-relaxed ${isOverlay ? 'text-neutral-200 text-base' : 'text-neutral-300'}`}>
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- INTERACTIVE TABLE ---
+
+        const InteractiveTable = ({ headers, rows }) => {
+            const [hoverRow, setHoverRow] = useState(null);
+            const [hoverCol, setHoverCol] = useState(null);
+
+            return (
+                <div className="w-full overflow-hidden rounded-xl border border-neutral-800 bg-[#0a0a0a] shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr>
+                                    {headers.map((h, i) => (
+                                        <th 
+                                            key={i} 
+                                            className={`p-4 font-bold text-xs uppercase tracking-wider border-b border-neutral-800 transition-colors cursor-pointer select-none
+                                                ${hoverCol === i ? 'bg-white/10 text-white' : 'bg-neutral-900 text-neutral-400'}
+                                            `}
+                                            onMouseEnter={() => setHoverCol(i)}
+                                            onMouseLeave={() => setHoverCol(null)}
+                                        >
+                                            {h}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="text-neutral-300">
+                                {rows.map((row, rIdx) => (
+                                    <tr 
+                                        key={rIdx} 
+                                        className={`transition-all duration-200 border-b border-neutral-800/50 last:border-0 
+                                            ${hoverRow !== null && hoverRow !== rIdx ? 'opacity-40' : 'opacity-100'}
+                                            ${hoverRow === rIdx ? 'bg-white/5' : ''}
+                                        `}
+                                        onMouseEnter={() => setHoverRow(rIdx)}
+                                        onMouseLeave={() => setHoverRow(null)}
+                                    >
+                                        {row.map((cell, cIdx) => (
+                                            <td 
+                                                key={cIdx} 
+                                                className={`p-4 transition-colors
+                                                    ${hoverCol === cIdx ? 'bg-white/5 text-white' : ''}
+                                                    ${cIdx === 0 ? 'font-mono text-orange-400 font-bold' : ''}
+                                                `}
+                                            >
+                                                {cell}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- TABS SYSTEM ---
+
+        const Tabs = ({ items, variant = "primary" }) => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            const tabStyles = {
+                primary: {
+                    container: "flex border-b border-neutral-800 mb-6 overflow-x-auto",
+                    btnBase: "px-6 py-3 text-sm font-medium relative top-[1px] transition-colors border-b-2 whitespace-nowrap",
+                    btnActive: "border-orange-500 text-white",
+                    btnInactive: "border-transparent text-neutral-500 hover:text-neutral-300 hover:border-neutral-800"
+                },
+                secondary: {
+                    container: "flex flex-wrap gap-2 mb-6 p-1 bg-neutral-900/50 rounded-lg inline-flex border border-neutral-800",
+                    btnBase: "px-4 py-1.5 text-xs font-bold rounded-md transition-all",
+                    btnActive: "bg-orange-500 text-white shadow-md",
+                    btnInactive: "text-neutral-400 hover:text-white hover:bg-white/5"
+                }
+            };
+
+            const s = tabStyles[variant];
+
+            return (
+                <div className="animate-fade-in">
+                    <div className={s.container}>
+                        {items.map((item, idx) => (
                             <button
-                                key={index}
-                                onClick={() => setActiveTab(index)}
-                                className={`transition-all duration-200 ${ variant === 'primary' ? `${primaryBase} ${index > 0 ? 'ml-1' : ''}` : secondaryBase} ${
-                                    activeTab === index ? (variant === 'primary' ? primaryActive : secondaryActive) : (variant === 'primary' ? primaryInactive : secondaryInactive)
-                                }`}
+                                key={idx}
+                                onClick={() => setActiveTab(idx)}
+                                className={`${s.btnBase} ${activeTab === idx ? s.btnActive : s.btnInactive}`}
                             >
-                                {tab}
+                                {item.label}
                             </button>
                         ))}
                     </div>
-                    <div>
-                        {children.map((child, index) => (
-                            <div key={index} className={activeTab === index ? 'block' : 'hidden'}>
-                                {child}
-                            </div>
-                        ))}
+                    <div className="min-h-[200px]">
+                        {items[activeTab].content}
                     </div>
                 </div>
             );
@@ -135,447 +339,482 @@
 
         // --- PAGES ---
 
-        const HomePage = ({ setActivePage }) => {
-            return (
-                <div>
-                    <div className="mb-8">
-                        <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">Python Basics <span className="text-orange-500">.exp</span></h1>
-                        <p className="text-xl text-neutral-400 font-light">Interactive study guide for <strong className="text-white">Chapter 7: Data Handling</strong>.</p>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card className="p-6 col-span-2">
-                            <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                                <span className="text-orange-500 mr-2">⚡</span> Chapter Overview
-                            </h3>
-                            <p className="text-neutral-400 mb-6 leading-relaxed">
-                                This chapter covers the core building blocks of Python data handling: how numbers work, how collections store data, and how variables manage memory.
-                            </p>
-                            <div className="flex space-x-4">
-                                <button onClick={() => setActivePage('collections')} className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded-full font-medium transition-colors">
-                                    Study Collections
-                                </button>
-                                <button onClick={() => setActivePage('mutability')} className="bg-neutral-800 hover:bg-neutral-700 text-white px-6 py-2 rounded-full font-medium transition-colors">
-                                    Mutability Rules
-                                </button>
-                                <a href="index.html" class="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-full font-medium transition-colors">Go to chapter 6</a>
-                            </div>
-                        </Card>
-                        <Card className="p-6 border-orange-900/30 bg-orange-900/10">
-                            <h3 className="text-lg font-bold text-orange-400 mb-3">Key Concepts</h3>
-                            <ul className="space-y-3 text-sm text-neutral-300">
-                                <li className="flex items-start"><span className="mr-2 text-orange-500">&bull;</span> <strong>Immutable:</strong> Int, Float, Bool, String, Tuple</li>
-                                <li className="flex items-start"><span className="mr-2 text-orange-500">&bull;</span> <strong>Mutable:</strong> List, Set, Dictionary</li>
-                                <li className="flex items-start"><span className="mr-2 text-orange-500">&bull;</span> <strong>Division:</strong> `/` is always float.</li>
-                            </ul>
-                        </Card>
-                    </div>
+        const NumbersPage = () => (
+            <div>
+                <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-white mb-2">1. Numbers</h1>
+                    <p className="text-neutral-300 text-lg">Numeric primitive types in Python used to store values.</p>
                 </div>
-            );
-        };
 
-        const NumbersPage = () => {
-            return (
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Numbers & Booleans</h1>
-                    <p className="text-neutral-400 mb-8">Numeric primitive types in Python.</p>
-
-                    <div className="grid grid-cols-1 gap-6">
-                        
-                        {/* Integers & Floats */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card className="p-6">
-                                <h3 className="text-lg font-bold text-orange-400 mb-2">Integers (int)</h3>
-                                <p className="text-sm text-neutral-300 mb-2">Whole numbers, positive or negative, without fractions.</p>
-                                <CodeBlock className="text-sm">x = 10</CodeBlock>
-                            </Card>
-                            <Card className="p-6">
-                                <h3 className="text-lg font-bold text-orange-400 mb-2">Floating Point (float)</h3>
-                                <p className="text-sm text-neutral-300 mb-2">Numbers with fractional parts. Can use exponents.</p>
-                                <CodeBlock className="text-sm">{`pi = 3.14159\nsci = 3.05e3  # 3050.0`}</CodeBlock>
-                            </Card>
+                <Tabs variant="primary" items={[
+                    { label: "Integers", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="100
+                                    -50">
+                                    {`# Integers are whole numbers\nx = 100\ny = -50\nprint(x, y)`}
+                                </CodeBlock>
+                                <CodeBlock output="22400000000000000">
+                                    {`# Python handles massive numbers automatically\nhuge = 224 * 10**14\nprint(huge)`}
+                                </CodeBlock>
+                            </div>
+                            <Callout title="Fact" variant="info">
+                                Integers in Python have <strong>arbitrary precision</strong>. They can be as large as your computer's memory allows, unlike other languages (C, Java) which have fixed sizes like 32-bit or 64-bit.
+                            </Callout>
                         </div>
-
-                        {/* Booleans */}
-                        <Card className="p-6">
-                            <h3 className="text-lg font-bold text-white mb-4">Booleans (bool)</h3>
-                            <p className="text-neutral-400 mb-4 text-sm">Represents truth values `True` or `False`. Internally acts like 1 and 0.</p>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-neutral-950 p-4 rounded border border-red-900/30">
-                                    <h4 className="text-red-400 font-bold mb-3 text-sm uppercase">Evaluates to False</h4>
-                                    <ul className="space-y-2 font-mono text-sm text-neutral-400">
-                                        <li className="flex justify-between"><span>bool(0)</span> <span>→ False</span></li>
-                                        <li className="flex justify-between"><span>bool(0.0)</span> <span>→ False</span></li>
-                                        <li className="flex justify-between"><span>bool('')</span> <span>→ False</span></li>
-                                        <li className="flex justify-between"><span>bool(None)</span> <span>→ False</span></li>
+                    )},
+                    { label: "Booleans", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="True\nFalse">
+                                    {`is_active = True\nis_closed = False\nprint(is_active)\nprint(is_closed)`}
+                                </CodeBlock>
+                                <CodeBlock output="2\n0">
+                                    {`# Math with Booleans (True=1, False=0)\nprint(True + True)\nprint(False * 10)`}
+                                </CodeBlock>
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="p-5 rounded-xl border border-emerald-900/30 bg-emerald-900/5">
+                                    <h4 className="text-emerald-400 font-bold mb-3 text-sm tracking-wide">TRUTHY VALUES (True)</h4>
+                                    <ul className="text-sm text-neutral-300 space-y-2 font-mono">
+                                        <li className="flex justify-between border-b border-white/5 pb-1"><span>bool(1)</span> ✅</li>
+                                        <li className="flex justify-between border-b border-white/5 pb-1"><span>bool(-5)</span> ✅</li>
+                                        <li className="flex justify-between"><span>bool("text")</span> ✅</li>
                                     </ul>
                                 </div>
-                                <div className="bg-neutral-950 p-4 rounded border border-emerald-900/30">
-                                    <h4 className="text-emerald-400 font-bold mb-3 text-sm uppercase">Evaluates to True</h4>
-                                    <ul className="space-y-2 font-mono text-sm text-neutral-400">
-                                        <li className="flex justify-between"><span>bool(1)</span> <span>→ True</span></li>
-                                        <li className="flex justify-between"><span>bool(0.1)</span> <span>→ True</span></li>
-                                        <li className="flex justify-between"><span>bool('py')</span> <span>→ True</span></li>
-                                        <li className="flex justify-between"><span>bool(-5)</span> <span>→ True</span></li>
+                                <div className="p-5 rounded-xl border border-red-900/30 bg-red-900/5">
+                                    <h4 className="text-red-400 font-bold mb-3 text-sm tracking-wide">FALSY VALUES (False)</h4>
+                                    <ul className="text-sm text-neutral-300 space-y-2 font-mono">
+                                        <li className="flex justify-between border-b border-white/5 pb-1"><span>bool(0)</span> ❌</li>
+                                        <li className="flex justify-between border-b border-white/5 pb-1"><span>bool(0.0)</span> ❌</li>
+                                        <li className="flex justify-between border-b border-white/5 pb-1"><span>bool("")</span> ❌</li>
+                                        <li className="flex justify-between"><span>bool(None)</span> ❌</li>
                                     </ul>
                                 </div>
                             </div>
-                        </Card>
-
-                        {/* Complex Numbers */}
-                        <Card className="p-6">
-                            <h3 className="text-lg font-bold text-white mb-2">Complex Numbers</h3>
-                            <p className="text-sm text-neutral-400 mb-4">Written as <code className="text-orange-400">a + bj</code> where <code className="text-orange-400">j</code> is the imaginary unit.</p>
-                            <div className="flex flex-col md:flex-row gap-4 items-start">
-                                <CodeBlock className="text-sm flex-1">{`z = 3 + 5j\nprint(z.real)  # 3.0\nprint(z.imag)  # 5.0`}</CodeBlock>
-                                <div className="text-xs text-neutral-500 max-w-xs">
-                                    Used primarily in engineering and math. Not common in basic scripts.
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-                </div>
-            );
-        };
-
-        const CollectionsPage = () => {
-            return (
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Collections</h1>
-                    <p className="text-neutral-400 mb-8">Storing multiple values in variables.</p>
-
-                    <Card className="p-6">
-                        <Tabs tabs={['Strings', 'Lists vs Tuples', 'Sets', 'Dictionaries']}>
-                            
-                            {/* Strings */}
-                            <div>
-                                <h3 className="text-xl font-bold text-white mb-4">Strings (Immutable Sequence)</h3>
-                                <div className="mb-6">
-                                    <h4 className="text-orange-400 font-bold text-sm mb-2">Indexing Visualization</h4>
-                                    <div className="flex justify-center overflow-x-auto py-4 bg-neutral-900 rounded-lg border border-neutral-800">
-                                        <div className="flex">
-                                            {['P', 'Y', 'T', 'H', 'O', 'N'].map((char, i) => (
-                                                <div key={i} className="flex flex-col items-center mx-1">
-                                                    <span className="text-xs text-neutral-500 mb-1">{i}</span>
-                                                    <div className="w-10 h-10 bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white font-bold rounded">{char}</div>
-                                                    <span className="text-xs text-orange-500 mt-1">{-6+i}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <p className="text-center text-xs text-neutral-500 mt-2">Top: Forward Index (0) | Bottom: Backward Index (-1)</p>
-                                </div>
-                                <div className="bg-red-900/10 border border-red-900/30 p-4 rounded">
-                                    <strong className="text-red-400 text-sm">⚠️ Immutability Warning</strong>
-                                    <p className="text-neutral-300 text-sm mt-1">Strings cannot be changed in place.</p>
-                                    <CodeBlock className="text-sm mt-2">{`s = "Hello"\ns[0] = "h"  # TypeError!`}</CodeBlock>
-                                </div>
-                            </div>
-
-                            {/* Lists vs Tuples */}
-                            <div>
-                                <h3 className="text-xl font-bold text-white mb-4">Lists vs. Tuples</h3>
-                                <div className="overflow-hidden rounded-lg border border-neutral-800">
-                                    <table className="w-full text-left text-sm">
-                                        <thead>
-                                            <tr>
-                                                <th className="p-4 bg-neutral-900 text-neutral-400">Feature</th>
-                                                <th className="p-4 bg-neutral-900 text-orange-400">List 📝</th>
-                                                <th className="p-4 bg-neutral-900 text-blue-400">Tuple 🔒</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="text-neutral-300 divide-y divide-neutral-800">
-                                            <tr>
-                                                <td className="p-4 font-bold">Mutability</td>
-                                                <td className="p-4 text-emerald-400">Mutable (Changeable)</td>
-                                                <td className="p-4 text-red-400">Immutable (Fixed)</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-4 font-bold">Syntax</td>
-                                                <td className="p-4 font-mono">[] Square Brackets</td>
-                                                <td className="p-4 font-mono">() Parentheses</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-4 font-bold">Example</td>
-                                                <td className="p-4 font-mono">a = [1, 2, 3]</td>
-                                                <td className="p-4 font-mono">b = (1, 2, 3)</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-4 font-bold">Modification</td>
-                                                <td className="p-4 font-mono">a[0] = 99  # OK</td>
-                                                <td className="p-4 font-mono">b[0] = 99  # Error</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* Sets */}
-                            <div>
-                                <h3 className="text-xl font-bold text-white mb-4">Sets (Unordered Unique)</h3>
-                                <p className="text-neutral-400 text-sm mb-4">Collection of unique elements. No duplicates allowed. No index access.</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <CodeBlock className="text-sm">{`my_set = {1, 2, 3, 3}\nprint(my_set) \n# Output: {1, 2, 3}`}</CodeBlock>
-                                    <div className="space-y-2">
-                                        <div className="bg-neutral-900 p-3 rounded border border-neutral-800 text-sm">
-                                            <span className="text-orange-400 font-mono">.add(x)</span> : Add element
-                                        </div>
-                                        <div className="bg-neutral-900 p-3 rounded border border-neutral-800 text-sm">
-                                            <span className="text-orange-400 font-mono">.remove(x)</span> : Remove element
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Dictionaries */}
-                            <div>
-                                <h3 className="text-xl font-bold text-white mb-4">Dictionaries (Key-Value Mappings)</h3>
-                                <p className="text-neutral-400 text-sm mb-4">Values accessed via unique keys, not index.</p>
-                                <CodeBlock className="text-sm mb-4">{`student = {\n  "name": "Alex",\n  "age": 17\n}`}</CodeBlock>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                                    <div className="bg-neutral-950 p-3 rounded border border-neutral-800">
-                                        <div className="text-xs text-neutral-500">Access</div>
-                                        <code className="text-emerald-400">val = d["key"]</code>
-                                    </div>
-                                    <div className="bg-neutral-950 p-3 rounded border border-neutral-800">
-                                        <div className="text-xs text-neutral-500">Modify</div>
-                                        <code className="text-blue-400">d["key"] = new</code>
-                                    </div>
-                                    <div className="bg-neutral-950 p-3 rounded border border-neutral-800">
-                                        <div className="text-xs text-neutral-500">Delete</div>
-                                        <code className="text-red-400">del d["key"]</code>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </Tabs>
-                    </Card>
-                </div>
-            );
-        };
-
-        const MutabilityPage = () => {
-            return (
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Variables & Mutability</h1>
-                    <p className="text-neutral-400 mb-8">How Python stores data in memory.</p>
-
-                    <div className="grid grid-cols-1 gap-8">
-                        
-                        {/* Mutable vs Immutable */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card className="p-6 border-l-4 border-l-blue-500">
-                                <h3 className="text-lg font-bold text-blue-400 mb-4">Immutable Types</h3>
-                                <p className="text-xs text-neutral-400 mb-4">Cannot be changed in place. Changing variable creates new object.</p>
-                                <ul className="list-disc pl-4 space-y-1 text-sm text-neutral-300">
-                                    <li>Integer</li>
-                                    <li>Float</li>
-                                    <li>Boolean</li>
-                                    <li>String</li>
-                                    <li>Tuple</li>
-                                </ul>
-                            </Card>
-                            <Card className="p-6 border-l-4 border-l-orange-500">
-                                <h3 className="text-lg font-bold text-orange-400 mb-4">Mutable Types</h3>
-                                <p className="text-xs text-neutral-400 mb-4">Can be modified in place (same memory address).</p>
-                                <ul className="list-disc pl-4 space-y-1 text-sm text-neutral-300">
-                                    <li>List</li>
-                                    <li>Dictionary</li>
-                                    <li>Set</li>
-                                </ul>
-                            </Card>
                         </div>
-
-                        {/* Object Attributes */}
-                        <Card className="p-6">
-                            <h3 className="text-xl font-bold text-white mb-6">Object Attributes</h3>
-                            <p className="text-neutral-400 text-sm mb-6">Every value in Python is an object with 3 key attributes:</p>
-                            
-                            <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
-                                <div className="w-full md:w-1/3 bg-neutral-900 p-4 rounded-xl border border-neutral-800 text-center">
-                                    <div className="text-2xl mb-2">🏷️</div>
-                                    <div className="font-bold text-white mb-1">Type</div>
-                                    <code className="text-xs text-orange-400 bg-black px-2 py-1 rounded">type(x)</code>
-                                    <p className="text-xs text-neutral-500 mt-2">Class of object (int, str)</p>
-                                </div>
-                                <div className="w-full md:w-1/3 bg-neutral-900 p-4 rounded-xl border border-neutral-800 text-center">
-                                    <div className="text-2xl mb-2">📦</div>
-                                    <div className="font-bold text-white mb-1">Value</div>
-                                    <code className="text-xs text-orange-400 bg-black px-2 py-1 rounded">print(x)</code>
-                                    <p className="text-xs text-neutral-500 mt-2">The data itself</p>
-                                </div>
-                                <div className="w-full md:w-1/3 bg-neutral-900 p-4 rounded-xl border border-neutral-800 text-center">
-                                    <div className="text-2xl mb-2">📍</div>
-                                    <div className="font-bold text-white mb-1">ID</div>
-                                    <code className="text-xs text-orange-400 bg-black px-2 py-1 rounded">id(x)</code>
-                                    <p className="text-xs text-neutral-500 mt-2">Memory address</p>
-                                </div>
+                    )},
+                    { label: "Floating Point", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="3.14159\n3050.0">
+                                    {`pi = 3.14159\nsci = 3.05e3  # Scientific Notation\nprint(pi)\nprint(sci)`}
+                                </CodeBlock>
+                                <CodeBlock output="False">
+                                    {`# Precision Warning!\n# 0.1 + 0.2 is actually 0.30000000000000004\nprint(0.1 + 0.2 == 0.3)`}
+                                </CodeBlock>
                             </div>
-
-                            <div className="mt-6 bg-blue-900/10 border border-blue-900/30 p-4 rounded text-sm">
-                                <p className="text-blue-300"><strong>Note on Aliasing:</strong> If <code className="text-white">P = 5</code> and <code className="text-white">Q = P</code>, both refer to the exact same memory address because integers are immutable.</p>
+                            <Callout title="Precision Trap" variant="warning">
+                                Floating point numbers are stored in binary, which can cause tiny rounding errors. Never compare floats directly using <code>==</code>. Instead, check if they are "close enough".
+                            </Callout>
+                        </div>
+                    )},
+                    { label: "Complex", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="(3+5j)">
+                                    {`# Syntax: a + bj\nz = 3 + 5j\nprint(z)`}
+                                </CodeBlock>
+                                <CodeBlock output="Real: 3.0\nImag: 5.0">
+                                    {`z = 3 + 5j\nprint("Real:", z.real)\nprint("Imag:", z.imag)`}
+                                </CodeBlock>
                             </div>
-                        </Card>
-                    </div>
-                </div>
-            );
-        };
-
-        const OpTable = ({ data }) => (
-            <table className="w-full text-left text-sm">
-                <thead>
-                    <tr>
-                        <th className="p-3 bg-neutral-900 text-neutral-400">Symbol</th>
-                        <th className="p-3 bg-neutral-900 text-neutral-400">Description</th>
-                        {data[0].ex && <th className="p-3 bg-neutral-900 text-neutral-400">Example/Note</th>}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800 text-neutral-300">
-                    {data.map((row, i) => (
-                        <tr key={i}>
-                            <td className="p-3 font-mono text-orange-400 font-bold">{row.sym}</td>
-                            <td className="p-3">{row.desc}</td>
-                            {row.ex && <td className="p-3 font-mono text-xs text-emerald-400">{row.ex}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                            <p className="text-sm text-neutral-400 italic">Complex numbers are mainly used in advanced mathematical and engineering applications.</p>
+                        </div>
+                    )}
+                ]} />
+            </div>
         );
 
-        const OperatorsPage = () => {
-            return (
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Arithmetic Operators</h1>
-                    <p className="text-neutral-400 mb-8">Mathematical operations on data.</p>
+        const StringsPage = () => (
+             <div>
+                <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-white mb-2">2. Strings</h1>
+                    <p className="text-neutral-300 text-lg">Sequences of characters enclosed in quotes.</p>
+                </div>
 
-                    <Card className="p-6">
-                        <Tabs tabs={['Binary (Math)', 'Unary', 'Assignment']}>
-                            
-                            {/* Binary */}
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-4">Binary Operators</h3>
-                                <OpTable data={[
-                                    { sym: '+', desc: 'Addition', ex: '4+2 = 6' },
-                                    { sym: '-', desc: 'Subtraction', ex: '4-2 = 2' },
-                                    { sym: '*', desc: 'Multiplication', ex: '4*2 = 8' },
-                                    { sym: '/', desc: 'Division', ex: '10/2 = 5.0 (Always Float)' },
-                                    { sym: '//', desc: 'Floor Division', ex: '10//3 = 3 (Truncates decimal)' },
-                                    { sym: '%', desc: 'Modulus', ex: '10%3 = 1 (Remainder)' },
-                                    { sym: '**', desc: 'Exponentiation', ex: '2**3 = 8' },
-                                ]} />
+                <Tabs variant="primary" items={[
+                    { label: "Basics & Indexing", content: (
+                         <div className="grid gap-6 animate-fade-in">
+                             <div className="mb-4">
+                                <h4 className="text-sm uppercase text-neutral-500 font-bold tracking-wider mb-3">Visual Index Map</h4>
+                                <InteractiveTable 
+                                    headers={["Index Type", "0", "1", "2", "3", "4", "5"]}
+                                    rows={[
+                                        ["Character", "P", "y", "t", "h", "o", "n"],
+                                        ["Negative", "-6", "-5", "-4", "-3", "-2", "-1"]
+                                    ]}
+                                />
+                             </div>
+                             <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="P\nn">
+                                    {`s = "Python"\nprint(s[0])   # First\nprint(s[-1])  # Last`}
+                                </CodeBlock>
+                                <CodeBlock output="IndexError: string index out of range">
+                                    {`s = "Hi"\n# Error: Index 10 doesn't exist\nprint(s[10])`}
+                                </CodeBlock>
+                             </div>
+                         </div>
+                    )},
+                    { label: "Immutability", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                            <Callout title="Core Concept" variant="danger">
+                                Strings cannot be changed in place. Any "modification" actually creates a brand new string in memory.
+                            </Callout>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="TypeError: 'str' object does not support item assignment">
+                                    {`s = "Hello"\n# This creates an error\ns[0] = "h"`}
+                                </CodeBlock>
+                                <CodeBlock output="hello">
+                                    {`s = "Hello"\n# Correct way: Re-assign to new string\ns = "h" + s[1:]\nprint(s)`}
+                                </CodeBlock>
                             </div>
+                        </div>
+                    )},
+                    { label: "Slicing", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                            <p className="text-sm text-neutral-300 mb-4">Extract substrings using <code>[start : stop : step]</code>.</p>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="Py\nthon">
+                                    {`s = "Python"\nprint(s[0:2]) # Stop is exclusive\nprint(s[2:])  # To end`}
+                                </CodeBlock>
+                                <CodeBlock output="nohtyP">
+                                    {`s = "Python"\n# Reverse string step -1\nprint(s[::-1])`}
+                                </CodeBlock>
+                            </div>
+                        </div>
+                    )}
+                ]} />
+             </div>
+        );
 
-                            {/* Unary */}
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-4">Unary Operators</h3>
-                                <p className="text-sm text-neutral-400 mb-4">Operators that require only one operand.</p>
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div className="bg-neutral-900 p-4 rounded border border-neutral-800 flex items-center">
-                                        <div className="font-mono text-orange-400 text-xl mr-4">+</div>
-                                        <div>
-                                            <div className="font-bold text-white">Unary Plus</div>
-                                            <div className="text-sm text-neutral-400">Returns value as is. (+5 is 5)</div>
-                                        </div>
-                                    </div>
-                                    <div className="bg-neutral-900 p-4 rounded border border-neutral-800 flex items-center">
-                                        <div className="font-mono text-orange-400 text-xl mr-4">-</div>
-                                        <div>
-                                            <div className="font-bold text-white">Unary Minus</div>
-                                            <div className="text-sm text-neutral-400">Changes sign of number. (-5 is negative 5)</div>
-                                        </div>
-                                    </div>
+        const CompoundPage = () => (
+            <div>
+                 <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-white mb-2">3. Compound Types</h1>
+                    <p className="text-neutral-300 text-lg">Grouping values into lists, tuples, sets, and dictionaries.</p>
+                </div>
+                
+                <Tabs variant="primary" items={[
+                    { label: "Overview", content: (
+                        <div className="animate-fade-in">
+                            <InteractiveTable 
+                                headers={["Type", "Syntax", "Mutable?", "Ordered?", "Duplicates?"]}
+                                rows={[
+                                    ["List", "[ ]", "✅ Yes", "✅ Yes", "✅ Yes"],
+                                    ["Tuple", "( )", "❌ No", "✅ Yes", "✅ Yes"],
+                                    ["Set", "{ }", "✅ Yes", "❌ No", "❌ No"],
+                                    ["Dict", "{k:v}", "✅ Yes", "❌ No", "❌ Keys No"]
+                                ]}
+                            />
+                            <div className="grid md:grid-cols-2 gap-6 mt-6">
+                                <CodeBlock output="[1, 2, 3]">
+                                    {`# List Creation\nmy_list = [1, 2, 3]\nprint(my_list)`}
+                                </CodeBlock>
+                                <CodeBlock output="(1, 2, 3)">
+                                    {`# Tuple Creation\nmy_tuple = (1, 2, 3)\nprint(my_tuple)`}
+                                </CodeBlock>
+                            </div>
+                        </div>
+                    )},
+                    { label: "Lists", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="[100, 2, 3]">
+                                    {`nums = [1, 2, 3]\n# Mutable: Modify in place\nnums[0] = 100\nprint(nums)`}
+                                </CodeBlock>
+                                <CodeBlock output="[1, 2, 3, 4]">
+                                    {`nums = [1, 2, 3]\nnums.append(4)\nprint(nums)`}
+                                </CodeBlock>
+                             </div>
+                             <Callout title="Usage" variant="info">Use Lists when you have a collection of items that might change, or order matters (like a playlist).</Callout>
+                        </div>
+                    )},
+                    { label: "Tuples", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="TypeError: 'tuple' object does not support item assignment">
+                                    {`t = (1, 2, 3)\n# Immutable\nt[0] = 100`}
+                                </CodeBlock>
+                                <CodeBlock output="1\n(1, 2)">
+                                    {`t = (1, 2, 3)\nprint(t[0])\nprint(t[0:2])`}
+                                </CodeBlock>
+                             </div>
+                             <Callout title="Performance" variant="success">Tuples are faster than lists and safer for write-protected data.</Callout>
+                        </div>
+                    )},
+                    { label: "Sets", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="{1, 2, 3}">
+                                    {`# Duplicates removed automatically\ns = {1, 2, 3, 3, 2, 1}\nprint(s)`}
+                                </CodeBlock>
+                                <CodeBlock output="{1, 2, 3, 4}">
+                                    {`s = {1, 2, 3}\ns.add(4)\nprint(s)`}
+                                </CodeBlock>
+                             </div>
+                             <p className="text-sm text-neutral-400">Note: You cannot access set items by index (s[0] fails).</p>
+                        </div>
+                    )},
+                    { label: "Dictionaries", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="Alice">
+                                    {`d = {"name": "Alice", "age": 25}\nprint(d["name"])`}
+                                </CodeBlock>
+                                <CodeBlock output="{'name': 'Alice', 'age': 26}">
+                                    {`d = {"name": "Alice", "age": 25}\nd["age"] = 26\nprint(d)`}
+                                </CodeBlock>
+                             </div>
+                             <Callout title="Key Constraint" variant="warning">Dictionary Keys must be <strong>Immutable</strong>. You can use strings, numbers, or tuples as keys, but NOT lists.</Callout>
+                        </div>
+                    )}
+                ]} />
+            </div>
+        );
+
+        const MutabilityPage = () => (
+            <div>
+                 <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-white mb-2">4. Mutability</h1>
+                    <p className="text-neutral-300 text-lg">Understanding how variables store data in memory.</p>
+                </div>
+
+                <Tabs variant="primary" items={[
+                    { label: "Object Attributes", content: (
+                        <div className="animate-fade-in">
+                            <div className="grid grid-cols-3 gap-4 mb-6 text-center">
+                                <div className="bg-neutral-900 p-4 rounded-lg border border-neutral-800">
+                                    <div className="text-xs text-neutral-500 mb-1 uppercase tracking-wide">Class</div>
+                                    <div className="text-xl font-mono text-orange-400 font-bold">Type</div>
+                                    <code className="text-xs block mt-2 text-neutral-500">type(x)</code>
+                                </div>
+                                <div className="bg-neutral-900 p-4 rounded-lg border border-neutral-800">
+                                    <div className="text-xs text-neutral-500 mb-1 uppercase tracking-wide">Data</div>
+                                    <div className="text-xl font-mono text-blue-400 font-bold">Value</div>
+                                    <code className="text-xs block mt-2 text-neutral-500">print(x)</code>
+                                </div>
+                                <div className="bg-neutral-900 p-4 rounded-lg border border-neutral-800">
+                                    <div className="text-xs text-neutral-500 mb-1 uppercase tracking-wide">Address</div>
+                                    <div className="text-xl font-mono text-purple-400 font-bold">ID</div>
+                                    <code className="text-xs block mt-2 text-neutral-500">id(x)</code>
                                 </div>
                             </div>
-
-                            {/* Assignment */}
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-4">Argument Assignment</h3>
-                                <p className="text-sm text-neutral-400 mb-4">Perform calculation and assign result back to variable.</p>
-                                <OpTable data={[
-                                    { sym: '+=', desc: 'Add AND', ex: 'x+=y  → x=x+y' },
-                                    { sym: '-=', desc: 'Subtract AND', ex: 'x-=y  → x=x-y' },
-                                    { sym: '*=', desc: 'Multiply AND', ex: 'x*=y  → x=x*y' },
-                                    { sym: '/=', desc: 'Divide AND', ex: 'x/=y  → x=x/y' },
-                                    { sym: '//=', desc: 'Floor Div AND', ex: 'x//=y → x=x//y' },
-                                    { sym: '**=', desc: 'Power AND', ex: 'x**=y → x=x**y' },
-                                    { sym: '%=', desc: 'Modulus AND', ex: 'x%=y  → x=x%y' },
-                                ]} />
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="<class 'int'>">
+                                    {`x = 10\nprint(type(x))`}
+                                </CodeBlock>
+                                <CodeBlock output="14071234567890">
+                                    {`x = 10\nprint(id(x)) # Address`}
+                                </CodeBlock>
                             </div>
+                        </div>
+                    )},
+                    { label: "The Reference Trap", content: (
+                         <div className="grid gap-6 animate-fade-in">
+                             <Callout title="Aliasing Danger" variant="danger">
+                                 For mutable types (Lists), assigning <code>a = b</code> creates an <strong>Alias</strong>. They point to the SAME object. Changing one changes the other.
+                             </Callout>
+                             <div className="grid md:grid-cols-2 gap-6">
+                                 <CodeBlock output="A: [1, 99]\nB: [1, 99]">
+                                     {`# MUTABLE (Shared Memory)\na = [1, 2]\nb = a\nb[1] = 99\n\nprint("A:", a)\nprint("B:", b)`}
+                                 </CodeBlock>
+                                 <CodeBlock output="X: 10\nY: 20">
+                                     {`# IMMUTABLE (Independent)\nx = 10\ny = x\ny = 20\n\nprint("X:", x)\nprint("Y:", y)`}
+                                 </CodeBlock>
+                             </div>
+                         </div>
+                    )}
+                ]} />
+            </div>
+        );
 
-                        </Tabs>
-                    </Card>
+        const OperatorsPage = () => (
+             <div>
+                 <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-white mb-2">5. Operators</h1>
+                    <p className="text-neutral-300 text-lg">Symbols used for computation and logic.</p>
                 </div>
-            );
-        };
+                
+                <Tabs variant="primary" items={[
+                    { label: "Arithmetic", content: (
+                        <div className="animate-fade-in">
+                            <Tabs variant="secondary" items={[
+                                { label: "Binary (+, -, *, /)", content: (
+                                     <div className="grid gap-6 mt-4">
+                                         <InteractiveTable 
+                                            headers={["Op", "Name", "Example", "Result"]}
+                                            rows={[
+                                                ["+", "Add", "10 + 2", "12"],
+                                                ["-", "Sub", "10 - 2", "8"],
+                                                ["*", "Mult", "10 * 2", "20"],
+                                                ["/", "Div", "10 / 2", "5.0 (Float)"],
+                                                ["//", "Floor", "10 // 3", "3 (Int)"],
+                                                ["%", "Mod", "10 % 3", "1"],
+                                                ["**", "Pow", "2 ** 3", "8"]
+                                            ]}
+                                         />
+                                         <div className="grid md:grid-cols-2 gap-6">
+                                             <CodeBlock output="5.0\n3">
+                                                 {`# True Div vs Floor Div\nprint(11 / 3)\nprint(11 // 3)`}
+                                             </CodeBlock>
+                                             <CodeBlock output="1">
+                                                 {`# Modulus (Remainder)\nprint(10 % 3)`}
+                                             </CodeBlock>
+                                         </div>
+                                     </div>
+                                )},
+                                { label: "Unary (+, -)", content: (
+                                    <div className="grid gap-6 mt-4">
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <CodeBlock output="-5">
+                                                {`x = 5\nprint(-x) # Negation`}
+                                            </CodeBlock>
+                                            <CodeBlock output="5">
+                                                {`x = 5\nprint(+x) # Unchanged`}
+                                            </CodeBlock>
+                                        </div>
+                                    </div>
+                                )}
+                            ]} />
+                        </div>
+                    )},
+                    { label: "Assignment", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                            <InteractiveTable 
+                                headers={["Op", "Equivalent", "Description"]}
+                                rows={[
+                                    ["x += 5", "x = x + 5", "Add and Assign"],
+                                    ["x *= 2", "x = x * 2", "Mult and Assign"],
+                                    ["x /= 2", "x = x / 2", "Div and Assign"]
+                                ]}
+                            />
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="15">
+                                    {`x = 10\nx += 5\nprint(x)`}
+                                </CodeBlock>
+                                <CodeBlock output="30">
+                                    {`x = 10\nx *= 3\nprint(x)`}
+                                </CodeBlock>
+                            </div>
+                        </div>
+                    )},
+                    { label: "Relational", content: (
+                         <div className="grid gap-6 animate-fade-in">
+                            <p className="text-sm text-neutral-300 mb-4">Compares values. Returns <code>True</code> or <code>False</code>.</p>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <CodeBlock output="True">
+                                    {`# Numeric comparison\nprint(4 == 4.0)`}
+                                </CodeBlock>
+                                <CodeBlock output="True">
+                                    {`# String comparison (ASCII)\n# 'a' comes after 'A'\nprint('a' > 'A')`}
+                                </CodeBlock>
+                            </div>
+                         </div>
+                    )},
+                    { label: "Identity", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <Callout title="Is vs ==" variant="warning">
+                                 <code>==</code> checks if <strong>Values</strong> are equal.<br/>
+                                 <code>is</code> checks if <strong>Memory Addresses</strong> are equal.
+                             </Callout>
+                             <div className="grid md:grid-cols-2 gap-6">
+                                 <CodeBlock output="True\nFalse">
+                                     {`a = [1, 2]\nb = [1, 2]\n\nprint(a == b) # True (Same content)\nprint(a is b) # False (Diff objects)`}
+                                 </CodeBlock>
+                                 <CodeBlock output="True\nTrue">
+                                     {`a = 10\nb = 10\n# Small ints are cached\nprint(a == b)\nprint(a is b)`}
+                                 </CodeBlock>
+                             </div>
+                        </div>
+                    )},
+                    { label: "Logical", content: (
+                        <div className="grid gap-6 animate-fade-in">
+                             <InteractiveTable 
+                                headers={["A", "B", "A and B", "A or B"]}
+                                rows={[
+                                    ["False", "False", "False", "False"],
+                                    ["False", "True", "False", "True"],
+                                    ["True", "False", "False", "True"],
+                                    ["True", "True", "True", "True"]
+                                ]}
+                             />
+                             <div className="grid md:grid-cols-2 gap-6">
+                                 <CodeBlock output="True">
+                                     {`x = 5\nprint(x > 0 and x < 10)`}
+                                 </CodeBlock>
+                                 <CodeBlock output="5">
+                                     {`# Short circuit in non-boolean context\n# 0 is False, so return 5\nprint(0 or 5)`}
+                                 </CodeBlock>
+                             </div>
+                        </div>
+                    )}
+                ]} />
+             </div>
+        );
 
-        // --- LAYOUT COMPONENTS ---
-
-        const Sidebar = ({ activePage, setActivePage }) => {
-            return (
-                <nav className="w-full md:w-64 bg-black border-r border-neutral-900 shrink-0 flex flex-col relative z-20">
-                    <div className="p-6 border-b border-neutral-900">
-                        <h2 className="text-2xl font-bold text-orange-500 tracking-tight">
-                            Python<span className="text-white">Basics</span>
-                        </h2>
-                        <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Chapter 7 Explorer</p>
-                    </div>
-                    <div className="flex-1 overflow-y-auto py-4">
-                        <ul className="flex flex-col space-y-1">
-                            {NAV_ITEMS.map(item => (
-                                <li key={item.id}>
-                                    <button
-                                        onClick={() => setActivePage(item.id)}
-                                        className={`w-full text-left flex items-center px-6 py-3 text-sm font-medium transition-all ease-in-out duration-200 border-l-4 ${
-                                            activePage === item.id
-                                                ? 'bg-neutral-900 text-orange-400 border-orange-400'
-                                                : 'border-transparent text-neutral-300 hover:bg-neutral-950 hover:text-white'
-                                        }`}
-                                    >
-                                        <span>{item.icon}</span>
-                                        <span className="ml-3">{item.label}</span>
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div className="p-4 border-t border-neutral-900 text-center">
-                        <p className="text-xs text-neutral-600">Exam Cram Mode</p>
-                    </div>
-                </nav>
-            );
-        };
-
-        const MainContent = ({ activePage, setActivePage }) => {
-            const pageComponents = {
-                home: HomePage,
-                numbers: NumbersPage,
-                collections: CollectionsPage,
-                mutability: MutabilityPage,
-                operators: OperatorsPage,
-            };
-            
-            const ActivePageComponent = pageComponents[activePage];
-
-            return (
-                <main className="flex-1 overflow-y-auto bg-black p-6 md:p-12 relative">
-                    <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-900/20 via-black to-black pointer-events-none z-0"></div>
-                    <div className="relative z-10 max-w-5xl mx-auto content-panel">
-                        <ActivePageComponent setActivePage={setActivePage} />
-                    </div>
-                </main>
-            );
-        };
-
-        // --- APP ENTRY ---
+        // --- APP SHELL ---
 
         const App = () => {
-            const [activePage, setActivePage] = useState('home');
+            const [activePage, setActivePage] = useState('numbers');
+            const [focusedData, setFocusedData] = useState(null);
+            const [modalState, setModalState] = useState({ isOpen: false, code: '', output: '' });
+
+            const openModal = (code, output) => setModalState({ isOpen: true, code, output });
+            const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
+            const focusCallout = (data) => setFocusedData(data);
 
             return (
-                <div className="flex flex-col md:flex-row h-screen overflow-hidden">
-                    <Sidebar activePage={activePage} setActivePage={setActivePage} />
-                    <MainContent activePage={activePage} setActivePage={setActivePage} />
-                </div>
+                <FocusContext.Provider value={{ focusCallout }}>
+                    <CodeModalContext.Provider value={{ openModal }}>
+                        
+                        {/* Global Overlays */}
+                        
+                        {/* 1. Focus Mode Overlay */}
+                        {focusedData && (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                                {/* Blurred Backdrop */}
+                                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" onClick={() => setFocusedData(null)} />
+                                
+                                {/* The Focused Content - Scaled Up */}
+                                <div className="relative z-10 max-w-2xl w-full animate-scale-in cursor-default">
+                                    <Callout 
+                                        title={focusedData.title} 
+                                        variant={focusedData.variant}
+                                        isOverlay={true}
+                                    >
+                                        {focusedData.children}
+                                    </Callout>
+                                    <div className="text-center mt-4 text-neutral-500 text-xs uppercase tracking-widest animate-pulse">Click backdrop to close</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 2. Code Simulation Modal */}
+                        <CodeModal isOpen={modalState.isOpen} onClose={closeModal} code={modalState.code} output={modalState.output} />
+
+                        <div className={`flex h-screen bg-black text-neutral-200 font-sans overflow-hidden transition-all duration-300 ${focusedData ? 'scale-[0.99] opacity-30 blur-[2px]' : ''}`}>
+                            <Sidebar activePage={activePage} setActivePage={setActivePage} />
+                            
+                            <main className="flex-1 relative overflow-hidden flex flex-col">
+                                {/* Background Decoration */}
+                                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-900/20 via-black to-black pointer-events-none" />
+                                
+                                {/* Scrollable Content Area */}
+                                <div className="flex-1 overflow-y-auto p-8 md:p-12 relative z-10">
+                                    <div className="max-w-4xl mx-auto pb-24">
+                                        {activePage === 'numbers' && <NumbersPage />}
+                                        {activePage === 'strings' && <StringsPage />}
+                                        {activePage === 'compound' && <CompoundPage />}
+                                        {activePage === 'mutability' && <MutabilityPage />}
+                                        {activePage === 'operators' && <OperatorsPage />}
+                                    </div>
+                                </div>
+                            </main>
+                        </div>
+
+                    </CodeModalContext.Provider>
+                </FocusContext.Provider>
             );
         };
 
